@@ -1,6 +1,8 @@
 # --- Build ---
-# Node 22 LTS (la 20 entró en EOL en 2026; sin parches de seguridad).
-FROM node:22-alpine AS build
+# Node 22 LTS sobre Debian (slim), no Alpine: el build de dependencias grandes
+# (p. ej. @tabler/icons-react) provocaba en Alpine el fallo de npm
+# "Exit handler never called" (por musl/OOM). Debian lo evita.
+FROM node:22-slim AS build
 WORKDIR /app
 # Copiamos package.json y el lockfile primero (capa cacheable): mientras no
 # cambien, Docker reutiliza la capa de 'npm ci' y el build es casi instantaneo.
