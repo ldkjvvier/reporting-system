@@ -1,14 +1,13 @@
-# syntax=docker/dockerfile:1
 # --- Build ---
 # Node 22 LTS (la 20 entró en EOL en 2026; sin parches de seguridad).
 FROM node:22-alpine AS build
 WORKDIR /app
-# Copiamos package.json y el lockfile para usar `npm ci`: instalacion
-# determinista y mucho mas rapida que `npm install` (sin resolver el arbol),
-# respetando exactamente las versiones auditadas del lockfile.
+# Copiamos package.json y el lockfile primero (capa cacheable): mientras no
+# cambien, Docker reutiliza la capa de 'npm ci' y el build es casi instantaneo.
+# Usamos 'npm ci' (determinista y mas rapido que 'npm install', respeta el
+# lockfile auditado). Compatible con el builder clasico y con BuildKit.
 COPY package.json package-lock.json ./
-# Cache de npm entre builds para acelerar reconstrucciones (requiere BuildKit).
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN npm ci --no-audit --fund=false
 COPY . .
 RUN npm run build
 
