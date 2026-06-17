@@ -1,5 +1,7 @@
 # Sistema de Reportería Automatizado (Datadog Cloud SIEM)
 
+[![CI](https://github.com/ldkjvvier/reporting-system/actions/workflows/ci.yml/badge.svg)](https://github.com/ldkjvvier/reporting-system/actions/workflows/ci.yml)
+
 Sistema web para **crear, gestionar y ejecutar automáticamente** reportes basados en
 **Datadog**: Cloud SIEM (Logs / Security Signals) y **Métricas** (timeseries). Cada reporte:
 
