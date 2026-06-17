@@ -1,0 +1,17 @@
+# Dependencias para correr en LOCAL sin Docker (SQLite + ejecución en proceso).
+# No incluye psycopg2 (usa SQLite), redis/redbeat ni datadog-api-client (modo mock).
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+pydantic-settings
+email-validator
+python-multipart
+PyJWT
+bcrypt
+celery
+croniter
+python-dateutil
+tzdata
+pandas
+openpyxl

@@ -1,0 +1,73 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: reportes
+      POSTGRES_PASSWORD: reportes
+      POSTGRES_DB: reportes
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reportes"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./backend
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - outbox:/data/outbox
+    command: ["bash", "entrypoint.sh"]
+    ports:
+      - "8000:8000"
+
+  worker:
+    build: ./backend
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    volumes:
+      - outbox:/data/outbox
+    command: ["celery", "-A", "app.scheduling.celery_app.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+
+  beat:
+    build: ./backend
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    volumes:
+      - outbox:/data/outbox
+    command: ["celery", "-A", "app.scheduling.celery_app.celery_app", "beat", "--loglevel=info", "--scheduler", "redbeat.RedBeatScheduler"]
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+
+volumes:
+  db_data:
+  outbox:

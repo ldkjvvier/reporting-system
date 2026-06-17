@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Entorno
+.env
+.env.local
+
+# Datos generados
+data/
+outbox/
+
+# Bases de datos locales (SQLite)
+*.db
+*.sqlite3
