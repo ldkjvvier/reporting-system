@@ -1,4 +1,7 @@
-FROM python:3.14-slim
+# Python 3.13: versión estable con wheels precompilados para todas las
+# dependencias (pandas, psycopg2, etc.). Con 3.14 muchos paquetes se compilan
+# desde el código fuente y el build falla por headers de C ausentes.
+FROM python:3.13-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -6,9 +9,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Dependencias del sistema mínimas para psycopg2 y compilación ligera
+# Toolchain de compilación + headers (libc6-dev aporta assert.h y demás
+# cabeceras de C) y libpq-dev para psycopg2, por si algún paquete necesita
+# compilarse desde fuente.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc libpq-dev \
+    build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
