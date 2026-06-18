@@ -1,4 +1,4 @@
-"""Consulta de corridas y descarga de los archivos generados."""
+"""Consulta de ejecuciones y descarga de los archivos generados."""
 import os
 from typing import List
 
@@ -37,7 +37,7 @@ def list_runs(
 def download_run(run_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     run = db.get(ReportRun, run_id)
     if run is None:
-        raise HTTPException(status_code=404, detail="Corrida no encontrada")
+        raise HTTPException(status_code=404, detail="Ejecución no encontrada")
     require_report_access(db, run.report_id, user)
     if not run.file_path or not os.path.exists(run.file_path):
         raise HTTPException(status_code=404, detail="Archivo no disponible")

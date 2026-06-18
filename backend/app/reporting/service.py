@@ -1,4 +1,4 @@
-"""Orquestación de la ejecución de un reporte: fetch -> build -> send -> registrar corrida."""
+"""Orquestación de la ejecución de un reporte: fetch -> build -> send -> registrar ejecución."""
 import logging
 from datetime import datetime, timezone
 
@@ -13,7 +13,7 @@ logger = logging.getLogger("reporting.service")
 
 
 def run_report(db: Session, report_id: int, trigger: str = "manual") -> ReportRun:
-    """Ejecuta un reporte de principio a fin y devuelve la corrida registrada."""
+    """Ejecuta un reporte de principio a fin y devuelve la ejecución registrada."""
     report = db.get(Report, report_id)
     if report is None:
         raise ValueError(f"Reporte {report_id} no existe")

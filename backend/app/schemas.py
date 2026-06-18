@@ -156,7 +156,7 @@ class ReportOut(ReportBase):
     model_config = {"from_attributes": True}
 
 
-# ---------- Corridas ----------
+# ---------- Ejecuciones ----------
 class ReportRunOut(BaseModel):
     id: int
     report_id: int

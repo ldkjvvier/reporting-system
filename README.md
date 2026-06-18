@@ -22,7 +22,7 @@ Sistema web para **crear, gestionar y ejecutar automáticamente** reportes basad
 | `api`      | FastAPI. REST + auth (JWT).                               |
 | `worker`   | Celery. Ejecuta los reportes (genera archivo + envía).    |
 | `beat`     | Celery Beat + RedBeat. Dispara los reportes según su cron.|
-| `db`       | PostgreSQL. Usuarios, reportes y corridas.                |
+| `db`       | PostgreSQL. Usuarios, reportes y ejecuciones.             |
 | `redis`    | Broker de Celery + almacén de schedules RedBeat.          |
 
 ```
@@ -58,11 +58,11 @@ Crea una cuenta desde la pantalla de login (o `make seed` para un usuario demo:
    - Programación (presets diario/semanal/mensual o cron personalizado) + zona horaria.
 3. En el **Dashboard** puedes editar, pausar, eliminar, ver el **historial** o
    **Ejecutar ahora**.
-4. En el **Historial** se ven todas las corridas (estado, filas, envío) y se puede
+4. En el **Historial** se ven todas las ejecuciones (estado, filas, envío) y se puede
    **descargar** el archivo generado. La página se autorefresca.
 
 Para probar el disparo automático, crea un reporte con frecuencia **“Cada minuto (pruebas)”**
-y observa cómo aparecen corridas `scheduled` en el historial.
+y observa cómo aparecen ejecuciones `scheduled` en el historial.
 
 ## Conectar servicios reales
 

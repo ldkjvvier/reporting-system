@@ -1,4 +1,4 @@
-"""Modelos ORM: usuarios, equipos, reportes y corridas de reportes."""
+"""Modelos ORM: usuarios, equipos, reportes y ejecuciones de reportes."""
 from datetime import datetime
 
 from sqlalchemy import (

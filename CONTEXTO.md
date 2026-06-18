@@ -61,7 +61,7 @@ Seis servicios orquestados con Docker Compose:
 | `api`      | FastAPI                   | REST + autenticación (JWT) |
 | `worker`   | Celery                    | Ejecuta los reportes (genera archivo + envía) |
 | `beat`     | Celery Beat + RedBeat     | Dispara los reportes según su cron (schedules dinámicos) |
-| `db`       | PostgreSQL                | Usuarios, reportes y corridas |
+| `db`       | PostgreSQL                | Usuarios, reportes y ejecuciones |
 | `redis`    | Redis                     | Broker de Celery + almacén de schedules RedBeat |
 
 ```
@@ -127,7 +127,7 @@ Activación del modo real en `.env`: `DATADOG_MODE=real` / `EMAIL_MODE=real` + c
 ## 9. Estado actual
 
 - **Funcional de extremo a extremo** con datos mock.
-- Verificado: registro, login, vista previa, creación de reporte, ejecución, corrida
+- Verificado: registro, login, vista previa, creación de reporte, ejecución
   exitosa (40 filas), generación y descarga de Excel.
 - **Pendiente de credenciales del usuario** para activar Datadog real y correo real (Azure).
 - Corriendo en **modo local** (SQLite, sin Docker) para pruebas inmediatas; el stack Docker

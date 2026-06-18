@@ -52,7 +52,7 @@ export default function RunHistory() {
 
 	useEffect(() => {
 		load()
-		const t = setInterval(load, 4000) // refresco para ver corridas en curso
+		const t = setInterval(load, 4000) // refresco para ver ejecuciones en curso
 		return () => clearInterval(t)
 	}, [id])
 
@@ -129,7 +129,7 @@ export default function RunHistory() {
 			<Card withBorder radius="md" padding="lg">
 				{runs.length === 0 ? (
 					<Text c="dimmed" ta="center" py="xl">
-						Sin corridas todavía. Usa “Ejecutar ahora” o espera a la
+						Sin ejecuciones todavía. Usa “Ejecutar ahora” o espera a la
 						programación.
 					</Text>
 				) : (
