@@ -64,6 +64,7 @@ const empty: ReportInput = {
   query: "*",
   time_window: "last_24h",
   columns: [],
+  column_labels: {},
   output_format: "csv",
   recipients: [],
   cron: "0 8 * * *",
@@ -89,6 +90,27 @@ export default function ReportForm() {
   const [touched, setTouched] = useState<Set<number>>(new Set());
 
   const set = (patch: Partial<ReportInput>) => setForm((f) => ({ ...f, ...patch }));
+
+  // Cambia la selección de columnas y descarta los títulos de columnas que ya no
+  // están seleccionadas, para no arrastrar renombres obsoletos al guardar.
+  const setColumns = (cols: string[]) =>
+    setForm((f) => {
+      const labels: Record<string, string> = {};
+      for (const c of cols) if (f.column_labels[c]) labels[c] = f.column_labels[c];
+      return { ...f, columns: cols, column_labels: labels };
+    });
+
+  // Asigna (o limpia) el título personalizado de una columna.
+  const setLabel = (col: string, label: string) =>
+    setForm((f) => {
+      const next = { ...f.column_labels };
+      if (label) next[col] = label;
+      else delete next[col];
+      return { ...f, column_labels: next };
+    });
+
+  // Título efectivo de una columna en el reporte: el personalizado o su nombre original.
+  const labelFor = (col: string) => form.column_labels[col]?.trim() || col;
 
   // Errores de validación por campo. Los destinatarios son opcionales: solo se
   // valida el formato de los correos que se hayan escrito.
@@ -173,7 +195,7 @@ export default function ReportForm() {
     if (editing) {
       reportsApi.get(Number(id)).then((r) => {
         const { id: _i, created_by_id, created_at, updated_at, next_run, ...rest } = r as any;
-        setForm(rest);
+        setForm({ ...rest, column_labels: rest.column_labels ?? {} });
         const known = CRON_PRESETS.some((p) => p.value === r.cron);
         setCronPreset(known ? r.cron : "custom");
       });
@@ -343,7 +365,7 @@ export default function ReportForm() {
                       : "*"
                     : form.query;
                   setPreview(null);
-                  set({ source_type: src, columns: [], query });
+                  set({ source_type: src, columns: [], column_labels: {}, query });
                 }}
               />
               <Select
@@ -388,7 +410,7 @@ export default function ReportForm() {
                 }
                 data={selectable}
                 value={form.columns}
-                onChange={(v) => set({ columns: v })}
+                onChange={setColumns}
                 placeholder={form.columns.length ? "" : "Todas si se deja vacío"}
                 clearable
                 renderOption={({ option }) => (
@@ -407,7 +429,7 @@ export default function ReportForm() {
                     size="compact-xs"
                     variant="light"
                     onClick={() =>
-                      set({ columns: selectable.filter((f) => (coverage[f] ?? 0) > 0) })
+                      setColumns(selectable.filter((f) => (coverage[f] ?? 0) > 0))
                     }
                   >
                     Solo columnas con datos
@@ -415,7 +437,7 @@ export default function ReportForm() {
                   <Button
                     size="compact-xs"
                     variant="subtle"
-                    onClick={() => set({ columns: [...selectable] })}
+                    onClick={() => setColumns([...selectable])}
                   >
                     Incluir todas
                   </Button>
@@ -431,6 +453,31 @@ export default function ReportForm() {
               )}
             </Stack>
 
+            {form.columns.length > 0 && (
+              <Paper withBorder p="sm" radius="sm">
+                <Text size="sm" fw={500}>
+                  Títulos de las columnas
+                </Text>
+                <Text size="xs" c="dimmed" mb="xs">
+                  Personaliza el encabezado de cada columna en el archivo generado
+                  (p. ej. «timestamp» → «Fecha»). Deja en blanco para usar el nombre
+                  original.
+                </Text>
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
+                  {form.columns.map((c) => (
+                    <TextInput
+                      key={c}
+                      size="xs"
+                      label={c}
+                      placeholder={c}
+                      value={form.column_labels[c] ?? ""}
+                      onChange={(e) => setLabel(c, e.currentTarget.value)}
+                    />
+                  ))}
+                </SimpleGrid>
+              </Paper>
+            )}
+
             {preview && (
               <Paper withBorder p="xs" radius="sm">
                 <ScrollArea h={420}>
@@ -438,7 +485,7 @@ export default function ReportForm() {
                     <Table.Thead>
                       <Table.Tr>
                         {(form.columns.length ? form.columns : preview.fields).map((c) => (
-                          <Table.Th key={c}>{c}</Table.Th>
+                          <Table.Th key={c}>{labelFor(c)}</Table.Th>
                         ))}
                       </Table.Tr>
                     </Table.Thead>

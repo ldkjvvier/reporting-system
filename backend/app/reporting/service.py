@@ -38,6 +38,7 @@ def run_report(db: Session, report_id: int, trigger: str = "manual") -> ReportRu
             output_format=report.output_format,
             result=result,
             columns=report.columns,
+            column_labels=report.column_labels or {},
         )
         run.file_path = path
         run.row_count = row_count

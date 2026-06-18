@@ -1,6 +1,6 @@
 """Esquemas Pydantic para requests y responses."""
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -90,6 +90,9 @@ class ReportBase(BaseModel):
     query: str = "*"
     time_window: str = "last_24h"
     columns: List[str] = []
+    # Títulos personalizados: {campo_original: título}. Las columnas sin entrada
+    # conservan su nombre original en el archivo generado.
+    column_labels: Dict[str, str] = {}
     output_format: str = "csv"
     recipients: List[EmailStr] = []
     cron: str = "0 8 * * *"
@@ -123,6 +126,16 @@ class ReportBase(BaseModel):
         if not croniter.is_valid(v):
             raise ValueError("Expresión cron inválida (formato: m h dom mon dow)")
         return v
+
+    @field_validator("column_labels", mode="before")
+    @classmethod
+    def clean_labels(cls, v):
+        # mode="before": acepta None (filas migradas con la columna en NULL) y
+        # descarta títulos vacíos, normalizando a str→str (un título en blanco
+        # equivale a "usar el nombre original").
+        if not v:
+            return {}
+        return {str(k): str(val).strip() for k, val in v.items() if str(val).strip()}
 
 
 class ReportCreate(ReportBase):

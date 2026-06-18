@@ -80,6 +80,9 @@ class Report(Base):
     query: Mapped[str] = mapped_column(Text, default="*")
     time_window: Mapped[str] = mapped_column(String(20), default="last_24h")  # last_1h, last_24h, last_7d, last_30d
     columns: Mapped[list] = mapped_column(JSON, default=list)  # campos a incluir
+    # Títulos personalizados por columna: {campo_original: título_en_el_reporte}.
+    # Solo afecta el encabezado del archivo generado; las columnas sin entrada usan su nombre original.
+    column_labels: Mapped[dict] = mapped_column(JSON, default=dict)
     output_format: Mapped[str] = mapped_column(String(10), default="csv")  # csv | xlsx
     recipients: Mapped[list] = mapped_column(JSON, default=list)  # lista de correos
 

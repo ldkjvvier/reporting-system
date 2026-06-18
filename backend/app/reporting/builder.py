@@ -14,8 +14,13 @@ def _safe_name(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9_-]+", "_", name).strip("_") or "reporte"
 
 
-def build_dataframe(result: QueryResult, columns: List[str]) -> pd.DataFrame:
-    """Crea un DataFrame seleccionando solo las columnas pedidas (en orden)."""
+def build_dataframe(
+    result: QueryResult,
+    columns: List[str],
+    column_labels: dict | None = None,
+) -> pd.DataFrame:
+    """Crea un DataFrame seleccionando solo las columnas pedidas (en orden) y,
+    si se indican títulos personalizados, renombra el encabezado de salida."""
     selected = columns or result.fields
     df = pd.DataFrame(result.rows)
     # Garantiza que existan todas las columnas seleccionadas
@@ -26,6 +31,11 @@ def build_dataframe(result: QueryResult, columns: List[str]) -> pd.DataFrame:
         df = df[selected]
     else:
         df = pd.DataFrame(columns=selected)
+    # Renombra solo las columnas con título no vacío; el resto queda igual.
+    if column_labels:
+        rename = {c: column_labels[c] for c in selected if column_labels.get(c)}
+        if rename:
+            df = df.rename(columns=rename)
     return df
 
 
@@ -34,13 +44,14 @@ def build_file(
     output_format: str,
     result: QueryResult,
     columns: List[str],
+    column_labels: dict | None = None,
 ) -> tuple[str, str, int]:
     """Genera el archivo en OUTBOX_DIR.
 
     Devuelve (ruta_absoluta, nombre_archivo, num_filas).
     """
     os.makedirs(settings.OUTBOX_DIR, exist_ok=True)
-    df = build_dataframe(result, columns)
+    df = build_dataframe(result, columns, column_labels)
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     base = f"{_safe_name(report_name)}_{ts}"

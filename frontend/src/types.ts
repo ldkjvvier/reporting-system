@@ -29,6 +29,8 @@ export interface Report {
   query: string;
   time_window: string;
   columns: string[];
+  // Títulos personalizados por columna: { campo_original: título }.
+  column_labels: Record<string, string>;
   output_format: "csv" | "xlsx";
   recipients: string[];
   cron: string;
