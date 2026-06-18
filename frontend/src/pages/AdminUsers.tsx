@@ -128,6 +128,7 @@ export default function AdminUsers() {
       </Group>
 
       <Card withBorder padding="lg" radius="md">
+        <Table.ScrollContainer minWidth={760}>
         <Table verticalSpacing="sm">
           <Table.Thead>
             <Table.Tr>
@@ -198,6 +199,7 @@ export default function AdminUsers() {
             ))}
           </Table.Tbody>
         </Table>
+        </Table.ScrollContainer>
       </Card>
 
       <Modal

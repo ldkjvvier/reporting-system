@@ -109,6 +109,7 @@ export default function RunHistory() {
             Sin corridas todavía. Usa “Ejecutar ahora” o espera a la programación.
           </Text>
         ) : (
+          <Table.ScrollContainer minWidth={720}>
           <Table verticalSpacing="sm" highlightOnHover>
             <Table.Thead>
               <Table.Tr>
@@ -165,6 +166,7 @@ export default function RunHistory() {
               ))}
             </Table.Tbody>
           </Table>
+          </Table.ScrollContainer>
         )}
       </Card>
     </Stack>

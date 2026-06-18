@@ -18,6 +18,7 @@ import {
   Title,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import { IconAlertCircle } from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { adminApi, apiError, datadogApi, reportsApi } from "../api";
@@ -42,6 +43,17 @@ const CRON_PRESETS = [
 
 // La programación se ejecuta en horario local de Chile (ver backend SCHEDULER_TIMEZONE).
 const SCHEDULER_TZ = "America/Santiago";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Campos obligatorios de cada paso del Stepper. Se usa para bloquear el avance
+// y para marcar el paso en rojo cuando falta completar algo.
+const STEP_FIELDS: Record<number, string[]> = {
+  0: ["team_id", "name"],
+  1: ["query"],
+  2: ["recipients"],
+  3: ["cron"],
+};
 
 const empty: ReportInput = {
   name: "",
@@ -72,8 +84,35 @@ export default function ReportForm() {
   const [previewing, setPreviewing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [cronPreset, setCronPreset] = useState<string>("0 8 * * *");
+  // Pasos cuyos errores ya deben mostrarse (el usuario intentó avanzar desde ahí).
+  const [touched, setTouched] = useState<Set<number>>(new Set());
 
   const set = (patch: Partial<ReportInput>) => setForm((f) => ({ ...f, ...patch }));
+
+  // Errores de validación por campo. Los destinatarios son opcionales: solo se
+  // valida el formato de los correos que se hayan escrito.
+  const fieldErrors = useMemo(() => {
+    const e: Record<string, string> = {};
+    if (!form.team_id) e.team_id = "Selecciona un equipo propietario";
+    if (!form.name.trim()) e.name = "Ingresa un nombre para el reporte";
+    if (!form.query.trim()) e.query = "Ingresa una query de Datadog";
+    const badEmail = form.recipients.find((r) => !EMAIL_RE.test(r));
+    if (badEmail) e.recipients = `Correo inválido: ${badEmail}`;
+    if (!form.cron.trim()) e.cron = "Define la frecuencia de ejecución";
+    else if (cronPreset === "custom" && form.cron.trim().split(/\s+/).length !== 5)
+      e.cron = "La expresión cron debe tener 5 campos (m h dom mon dow)";
+    return e;
+  }, [form, cronPreset]);
+
+  const stepHasError = (step: number) =>
+    STEP_FIELDS[step]?.some((f) => fieldErrors[f]) ?? false;
+
+  // Muestra el error de un campo solo si su paso ya fue "tocado".
+  const showErr = (field: string, step: number) =>
+    touched.has(step) ? fieldErrors[field] : undefined;
+
+  const markTouched = (step: number) =>
+    setTouched((t) => new Set(t).add(step));
 
   // Equipos donde el usuario puede crear/editar: todos si es admin, o aquellos
   // en los que tiene rol 'editor'.
@@ -124,6 +163,17 @@ export default function ReportForm() {
   };
 
   const save = async () => {
+    // Revalida todo el formulario antes de enviar; salta al primer paso con error.
+    const firstBad = [0, 1, 2, 3].find((s) => stepHasError(s));
+    if (firstBad !== undefined) {
+      setTouched(new Set([0, 1, 2, 3]));
+      setActive(firstBad);
+      notifications.show({
+        color: "red",
+        message: "Hay campos requeridos sin completar",
+      });
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -146,17 +196,62 @@ export default function ReportForm() {
     }
   };
 
-  const next = () => setActive((a) => Math.min(a + 1, 4));
+  const next = () => {
+    if (stepHasError(active)) {
+      markTouched(active);
+      notifications.show({
+        color: "red",
+        message: "Completa los campos requeridos antes de continuar",
+      });
+      return;
+    }
+    setActive((a) => Math.min(a + 1, 4));
+  };
   const prev = () => setActive((a) => Math.max(a - 1, 0));
+
+  // Permite retroceder libremente, pero bloquea saltar a un paso posterior si
+  // algún paso intermedio tiene campos sin completar.
+  const handleStepClick = (target: number) => {
+    if (target <= active) {
+      setActive(target);
+      return;
+    }
+    for (let s = active; s < target; s++) {
+      if (stepHasError(s)) {
+        markTouched(s);
+        setActive(s);
+        notifications.show({
+          color: "red",
+          message: "Completa los campos requeridos antes de continuar",
+        });
+        return;
+      }
+    }
+    setActive(target);
+  };
 
   return (
     <Stack maw={900} mx="auto">
       <Title order={2}>{editing ? "Editar reporte" : "Nuevo reporte"}</Title>
 
       <Card withBorder padding="xl" radius="md">
-        <Stepper active={active} onStepClick={setActive} size="sm">
+        <Stepper
+          active={active}
+          onStepClick={handleStepClick}
+          allowNextStepsSelect={false}
+          size="sm"
+        >
           {/* Paso 1: Datos básicos */}
-          <Stepper.Step label="Datos" description="Equipo, nombre y descripción">
+          <Stepper.Step
+            label="Datos"
+            description="Equipo, nombre y descripción"
+            color={touched.has(0) && stepHasError(0) ? "red" : undefined}
+            completedIcon={
+              touched.has(0) && stepHasError(0) ? (
+                <IconAlertCircle size={18} />
+              ) : undefined
+            }
+          >
             <Stack mt="md">
               <Select
                 label="Equipo propietario"
@@ -167,12 +262,14 @@ export default function ReportForm() {
                 onChange={(v) => set({ team_id: v ? Number(v) : 0 })}
                 disabled={editing}
                 nothingFoundMessage="No tienes equipos con permiso de edición"
+                error={showErr("team_id", 0)}
               />
               <TextInput
                 label="Nombre del reporte"
                 required
                 value={form.name}
                 onChange={(e) => set({ name: e.currentTarget.value })}
+                error={showErr("name", 0)}
               />
               <Textarea
                 label="Descripción"
@@ -183,7 +280,16 @@ export default function ReportForm() {
           </Stepper.Step>
 
           {/* Paso 2: Fuente Datadog + preview + columnas */}
-          <Stepper.Step label="Datos Datadog" description="Fuente y columnas">
+          <Stepper.Step
+            label="Datos Datadog"
+            description="Fuente y columnas"
+            color={touched.has(1) && stepHasError(1) ? "red" : undefined}
+            completedIcon={
+              touched.has(1) && stepHasError(1) ? (
+                <IconAlertCircle size={18} />
+              ) : undefined
+            }
+          >
             <Stack mt="md">
               <SimpleGrid cols={{ base: 1, sm: 3 }}>
                 <Select
@@ -211,6 +317,8 @@ export default function ReportForm() {
                   }
                   value={form.query}
                   onChange={(e) => set({ query: e.currentTarget.value })}
+                  required
+                  error={showErr("query", 1)}
                   placeholder={
                     form.source_type === "metrics" ? "avg:system.cpu.user{*}" : "@severity:high"
                   }
@@ -265,7 +373,16 @@ export default function ReportForm() {
           </Stepper.Step>
 
           {/* Paso 3: Formato + destinatarios */}
-          <Stepper.Step label="Salida" description="Formato y correos">
+          <Stepper.Step
+            label="Salida"
+            description="Formato y correos"
+            color={touched.has(2) && stepHasError(2) ? "red" : undefined}
+            completedIcon={
+              touched.has(2) && stepHasError(2) ? (
+                <IconAlertCircle size={18} />
+              ) : undefined
+            }
+          >
             <Stack mt="md">
               <Select
                 label="Formato de archivo"
@@ -282,6 +399,7 @@ export default function ReportForm() {
                 placeholder="Escribe un correo y Enter"
                 value={form.recipients}
                 onChange={(v) => set({ recipients: v })}
+                error={showErr("recipients", 2)}
               />
               <Text size="xs" c="dimmed">
                 El envío por correo está en modo simulado (mock) hasta cargar credenciales de Azure.
@@ -290,7 +408,16 @@ export default function ReportForm() {
           </Stepper.Step>
 
           {/* Paso 4: Programación */}
-          <Stepper.Step label="Programación" description="Horario automático">
+          <Stepper.Step
+            label="Programación"
+            description="Horario automático"
+            color={touched.has(3) && stepHasError(3) ? "red" : undefined}
+            completedIcon={
+              touched.has(3) && stepHasError(3) ? (
+                <IconAlertCircle size={18} />
+              ) : undefined
+            }
+          >
             <Stack mt="md">
               <SimpleGrid cols={{ base: 1, sm: 2 }}>
                 <Select
@@ -301,6 +428,7 @@ export default function ReportForm() {
                     setCronPreset(v || "custom");
                     if (v && v !== "custom") set({ cron: v });
                   }}
+                  error={cronPreset !== "custom" ? showErr("cron", 3) : undefined}
                 />
                 <TextInput
                   label="Zona horaria"
@@ -314,6 +442,7 @@ export default function ReportForm() {
                   label="Expresión cron (m h dom mon dow)"
                   value={form.cron}
                   onChange={(e) => set({ cron: e.currentTarget.value })}
+                  error={showErr("cron", 3)}
                   placeholder="0 8 * * 1-5"
                 />
               )}
@@ -343,12 +472,7 @@ export default function ReportForm() {
               </Button>
             )}
             {active < 4 ? (
-              <Button
-                onClick={next}
-                disabled={active === 0 && (!form.name || !form.team_id)}
-              >
-                Siguiente
-              </Button>
+              <Button onClick={next}>Siguiente</Button>
             ) : (
               <Button onClick={save} loading={saving} color="green">
                 Guardar reporte

@@ -123,6 +123,7 @@ export default function Dashboard() {
             Aún no tienes reportes. Crea el primero con “Nuevo reporte”.
           </Text>
         ) : (
+          <Table.ScrollContainer minWidth={900}>
           <Table highlightOnHover verticalSpacing="sm">
             <Table.Thead>
               <Table.Tr>
@@ -208,6 +209,7 @@ export default function Dashboard() {
               ))}
             </Table.Tbody>
           </Table>
+          </Table.ScrollContainer>
         )}
       </Card>
     </Stack>
