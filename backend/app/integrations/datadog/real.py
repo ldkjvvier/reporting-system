@@ -117,15 +117,17 @@ class RealDatadogClient(DatadogClient):
                 unit_list = getattr(series, "unit", None) or []
                 unit = str(getattr(unit_list[0], "name", "")) if unit_list else ""
                 for point in getattr(series, "pointlist", None) or []:
-                    # pointlist: [[timestamp_ms, value], ...]
-                    if len(point) < 2 or point[1] is None:
+                    # Cada punto es un Point(ModelSimple): el par [ts_ms, value] está
+                    # en su atributo .value (no soporta len()/indexación directa).
+                    pt = getattr(point, "value", point)
+                    if not isinstance(pt, (list, tuple)) or len(pt) < 2 or pt[1] is None:
                         continue
-                    ts = datetime.fromtimestamp(point[0] / 1000, tz=timezone.utc)
+                    ts = datetime.fromtimestamp(pt[0] / 1000, tz=timezone.utc)
                     rows.append({
                         "timestamp": ts.isoformat(),
                         "metric": metric,
                         "scope": scope,
-                        "value": round(float(point[1]), 4),
+                        "value": round(float(pt[1]), 4),
                         "unit": unit,
                     })
                     if len(rows) >= limit:
