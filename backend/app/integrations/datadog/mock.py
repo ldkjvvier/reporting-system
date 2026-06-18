@@ -10,7 +10,7 @@ from app.integrations.datadog.base import (
     validate_metric_query,
     window_to_range,
 )
-from app.integrations.datadog.flatten import flatten_record
+from app.integrations.datadog.flatten import flatten_record, parse_group_by, parse_scope
 
 _SEVERITIES = ["info", "low", "medium", "high", "critical"]
 _STATUSES_SIGNAL = ["open", "under_review", "archived"]
@@ -45,17 +45,21 @@ def _ip(rng: random.Random) -> str:
 
 
 def _parse_metric_query(query: str) -> tuple[str, str]:
-    """Extrae (metric, scope) de un query estilo 'avg:system.cpu.user{host:web-01}'."""
+    """Extrae (metric, scope) de un query estilo 'avg:system.cpu.user{host:web-01}'
+    o 'sum:metrica{*} by {tagA,tagB}.as_count()'."""
     q = (query or "").strip() or "system.load.1"
+    # Quita el agregador (avg:, sum:, max:, ...) que va antes del primer '{'.
+    if ":" in q.split("{", 1)[0]:
+        q = q.split(":", 1)[1]
+    # El scope es el contenido del primer '{...}'; el nombre de la métrica, lo previo.
     scope = "*"
-    if "{" in q and q.endswith("}"):
-        head, scope_part = q[:-1].split("{", 1)
-        scope = scope_part.strip() or "*"
-        q = head
-    if ":" in q:
-        q = q.split(":", 1)[1]  # quita el agregador (avg:, sum:, max:, ...)
-    metric = q.strip() or "system.load.1"
-    return metric, scope
+    if "{" in q:
+        head, _, rest = q.partition("{")
+        scope = rest.partition("}")[0].strip() or "*"
+        metric = head.strip()
+    else:
+        metric = q.split(" ", 1)[0].strip()
+    return metric or "system.load.1", scope
 
 
 def _metric_unit(metric: str) -> str:
@@ -161,21 +165,44 @@ class MockDatadogClient(DatadogClient):
         return QueryResult(fields=fields_for(source_type), rows=rows)
 
     def _metric_rows(self, rng, start, span, query, time_window, limit):
-        """Genera una serie temporal determinista para una métrica."""
+        """Genera una o varias series temporales deterministas para una métrica.
+
+        Si la query agrupa con 'by {tagA,tagB,...}', simula una serie por cada
+        combinación de valores de esos tags y desglosa el scope en columnas, tal
+        como hace Datadog real, para poder previsualizar la selección de columnas.
+        """
         metric, scope = _parse_metric_query(query)
         unit = _metric_unit(metric)
+        group_keys = parse_group_by(query)
         counts = {"last_1h": 12, "last_24h": 24, "last_7d": 84, "last_30d": 120}
         points = min(limit, counts.get(time_window, 24))
-        base = rng.uniform(10, 90)
+
+        # Construye los scopes de cada serie: con 'by' genera combinaciones sintéticas,
+        # sin 'by' usa el scope tal cual de la query (una sola serie).
+        if group_keys:
+            scopes = [
+                ",".join(f"{k}:{k}_{n}" for k in group_keys)
+                for n in range(1, 4)  # 3 series de muestra por grupo
+            ]
+        else:
+            scopes = [scope]
+
         rows = []
-        for i in range(points):
-            ts = start + timedelta(seconds=span * (i / max(points - 1, 1)))
-            value = round(max(base + rng.uniform(-15, 15), 0.0), 2)
-            rows.append({
-                "timestamp": ts.isoformat(),
-                "metric": metric,
-                "scope": scope,
-                "value": value,
-                "unit": unit,
-            })
+        for series_scope in scopes:
+            scope_tags = parse_scope(series_scope)
+            base = rng.uniform(10, 90)
+            for i in range(points):
+                ts = start + timedelta(seconds=span * (i / max(points - 1, 1)))
+                value = round(max(base + rng.uniform(-15, 15), 0.0), 2)
+                row = {
+                    "timestamp": ts.isoformat(),
+                    "metric": metric,
+                    "scope": series_scope,
+                    "value": value,
+                    "unit": unit,
+                }
+                row.update(scope_tags)
+                rows.append(row)
+                if len(rows) >= limit:
+                    return rows
         return rows

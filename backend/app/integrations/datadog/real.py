@@ -14,7 +14,7 @@ from app.integrations.datadog.base import (
     validate_metric_query,
     window_to_range,
 )
-from app.integrations.datadog.flatten import flatten_record
+from app.integrations.datadog.flatten import flatten_record, parse_scope
 
 
 def _raw_attributes(attrs) -> dict:
@@ -114,6 +114,9 @@ class RealDatadogClient(DatadogClient):
             for series in getattr(resp, "series", None) or []:
                 metric = str(getattr(series, "metric", "") or "")
                 scope = str(getattr(series, "scope", "") or "*")
+                # Desglosa el scope de la serie ('action:block,usr.id:123,...') en una
+                # columna por tag, para que cada tag del 'by {...}' sea seleccionable.
+                scope_tags = parse_scope(scope)
                 unit_list = getattr(series, "unit", None) or []
                 unit = str(getattr(unit_list[0], "name", "")) if unit_list else ""
                 for point in getattr(series, "pointlist", None) or []:
@@ -123,13 +126,16 @@ class RealDatadogClient(DatadogClient):
                     if not isinstance(pt, (list, tuple)) or len(pt) < 2 or pt[1] is None:
                         continue
                     ts = datetime.fromtimestamp(pt[0] / 1000, tz=timezone.utc)
-                    rows.append({
+                    row = {
                         "timestamp": ts.isoformat(),
                         "metric": metric,
                         "scope": scope,
                         "value": round(float(pt[1]), 4),
                         "unit": unit,
-                    })
+                    }
+                    # Campos curados primero; cada tag del scope queda como columna propia.
+                    row.update(scope_tags)
+                    rows.append(row)
                     if len(rows) >= limit:
                         return rows
         return rows
