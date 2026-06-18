@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: reportes
       POSTGRES_PASSWORD: reportes
@@ -17,6 +18,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -25,6 +27,7 @@ services:
 
   api:
     build: ./backend
+    restart: unless-stopped
     env_file: .env
     depends_on:
       db:
@@ -39,6 +42,7 @@ services:
 
   worker:
     build: ./backend
+    restart: unless-stopped
     env_file: .env
     depends_on:
       api:
@@ -51,6 +55,7 @@ services:
 
   beat:
     build: ./backend
+    restart: unless-stopped
     env_file: .env
     depends_on:
       redis:
@@ -63,6 +68,7 @@ services:
 
   frontend:
     build: ./frontend
+    restart: unless-stopped
     depends_on:
       - api
     ports:
