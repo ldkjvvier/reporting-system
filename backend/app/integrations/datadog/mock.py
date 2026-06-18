@@ -7,6 +7,7 @@ from app.integrations.datadog.base import (
     DatadogClient,
     QueryResult,
     fields_for,
+    validate_metric_query,
     window_to_range,
 )
 from app.integrations.datadog.flatten import flatten_record
@@ -83,6 +84,9 @@ class MockDatadogClient(DatadogClient):
 
         # Métricas: timeseries con puntos equiespaciados (cada punto es una fila).
         if source_type == "metrics":
+            # Misma validación que el cliente real: una query sin agregador (o '*')
+            # debe fallar también en mock, no fabricar datos que ocultan el error.
+            validate_metric_query(query)
             rows = self._metric_rows(rng, start, span, query, time_window, limit)
             rows.sort(key=lambda r: r["timestamp"], reverse=True)
             return QueryResult(fields=fields_for(source_type), rows=rows)

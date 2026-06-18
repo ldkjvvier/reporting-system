@@ -11,6 +11,7 @@ from app.integrations.datadog.base import (
     DatadogClient,
     QueryResult,
     fields_for,
+    validate_metric_query,
     window_to_range,
 )
 from app.integrations.datadog.flatten import flatten_record
@@ -101,13 +102,14 @@ class RealDatadogClient(DatadogClient):
         from datadog_api_client import ApiClient
         from datadog_api_client.v1.api.metrics_api import MetricsApi
 
+        query = validate_metric_query(query)
         rows: List[dict] = []
         with ApiClient(self._configuration()) as api_client:
             api = MetricsApi(api_client)
             resp = api.query_metrics(
                 _from=int(start.timestamp()),
                 to=int(end.timestamp()),
-                query=query or "system.load.1{*}",
+                query=query,
             )
             for series in getattr(resp, "series", None) or []:
                 metric = str(getattr(series, "metric", "") or "")

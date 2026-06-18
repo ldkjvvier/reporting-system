@@ -41,6 +41,34 @@ LOG_FIELDS = [
 # Métricas (timeseries): cada fila es un punto de la serie.
 METRIC_FIELDS = ["timestamp", "metric", "scope", "value", "unit"]
 
+# Agregadores de espacio válidos para la Metrics Query API v1 de Datadog.
+# La query debe tener la forma 'agregador:metrica{scope}', p. ej. 'avg:system.cpu.user{*}'.
+METRIC_AGGREGATORS = {"avg", "sum", "min", "max", "count"}
+
+
+def validate_metric_query(query: str) -> str:
+    """Valida que la query de métricas tenga el formato 'agregador:metrica{scope}'
+    que exige la API v1 «Query timeseries points» de Datadog y la devuelve normalizada.
+
+    Lanza ``ValueError`` con un mensaje claro si es inválida, para evitar que Datadog
+    responda un 400 que terminaría como un 500 opaco en la vista previa.
+    """
+    q = (query or "").strip()
+    if not q or q == "*":
+        raise ValueError(
+            "La query de métrica debe tener el formato 'agregador:metrica{scope}', "
+            "por ejemplo 'avg:system.cpu.user{*}'."
+        )
+    head = q.split("{", 1)[0]
+    aggregator = head.split(":", 1)[0].strip().lower() if ":" in head else ""
+    if aggregator not in METRIC_AGGREGATORS:
+        raise ValueError(
+            "La query de métrica debe iniciar con un agregador "
+            f"({', '.join(sorted(METRIC_AGGREGATORS))}), p. ej. 'avg:system.cpu.user{{*}}'. "
+            f"Recibido: '{q}'."
+        )
+    return q
+
 
 def fields_for(source_type: str) -> List[str]:
     if source_type == "signals":

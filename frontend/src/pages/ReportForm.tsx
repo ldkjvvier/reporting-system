@@ -191,7 +191,13 @@ export default function ReportForm() {
       setPreview(data);
       if (form.columns.length === 0) set({ columns: data.fields });
     } catch (e: any) {
-      notifications.show({ color: "red", message: "No se pudo obtener la vista previa" });
+      // Surfacea el motivo real (p. ej. "métrica sin agregador") en vez de un
+      // mensaje genérico, para que el usuario pueda corregir la query.
+      notifications.show({
+        color: "red",
+        title: "No se pudo obtener la vista previa",
+        message: apiError(e, "Revisa la query y la fuente seleccionada"),
+      });
     } finally {
       setPreviewing(false);
     }
@@ -323,7 +329,22 @@ export default function ReportForm() {
                   { value: "metrics", label: "Métricas (timeseries)" },
                 ]}
                 value={form.source_type}
-                onChange={(v) => set({ source_type: (v as any) || "signals", columns: [] })}
+                onChange={(v) => {
+                  const src = (v as any) || "signals";
+                  // La query por defecto difiere por fuente: '*' es válida para
+                  // logs/signals pero inválida para métricas (que exige
+                  // 'agregador:metrica{scope}'). Reiniciamos la query si aún tiene el
+                  // default de la otra fuente, para no arrastrar '*' a métricas.
+                  const carriedDefault =
+                    form.query.trim() === "*" || form.query.trim() === "";
+                  const query = carriedDefault
+                    ? src === "metrics"
+                      ? ""
+                      : "*"
+                    : form.query;
+                  setPreview(null);
+                  set({ source_type: src, columns: [], query });
+                }}
               />
               <Select
                 label="Ventana de tiempo"
