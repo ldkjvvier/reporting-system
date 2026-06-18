@@ -48,7 +48,7 @@ el reporte se genera y distribuye solo en la frecuencia deseada.
 | 7 | Envío por correo a destinatarios (Microsoft Graph / Azure) | ✅ (mock) |
 | 8 | **Ejecución automática programada** (cron por reporte) | ✅ (requiere stack Docker) |
 | 9 | Ejecución manual ("Ejecutar ahora") | ✅ |
-| 10 | Historial de corridas con estado, nº de filas y descarga del archivo | ✅ |
+| 10 | Historial de ejecuciones con estado, nº de filas y descarga del archivo | ✅ |
 | 11 | Activar/pausar/editar/eliminar reportes | ✅ |
 
 ## 5. Arquitectura
