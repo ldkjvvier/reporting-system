@@ -9,6 +9,7 @@ from app.integrations.datadog.base import (
     fields_for,
     window_to_range,
 )
+from app.integrations.datadog.flatten import flatten_record
 
 _SEVERITIES = ["info", "low", "medium", "high", "critical"]
 _STATUSES_SIGNAL = ["open", "under_review", "archived"]
@@ -23,6 +24,14 @@ _HOSTS = ["web-01", "web-02", "api-03", "db-01", "worker-05", "bastion-01"]
 _SERVICES = ["auth", "payments", "gateway", "ingest", "billing"]
 _USERS = ["alice", "bob", "carol", "svc-deploy", "root", "admin"]
 _METHODS = ["GET", "POST", "PUT", "DELETE"]
+# Valores para los campos anidados (demuestran el descubrimiento de campos en notación de punto).
+_TRIAGE = ["untriaged", "investigating", "resolved"]
+_DETECTION = ["threshold", "anomaly_detection", "new_value", "impossible_travel"]
+_COUNTRIES = ["Chile", "Brazil", "United States", "Russia", "Germany"]
+_ISO = ["CL", "BR", "US", "RU", "DE"]
+_ENVS = ["prod", "staging", "dev"]
+_LOGGERS = ["app.auth", "app.api", "nginx.access", "kernel"]
+_OS = ["Windows", "Linux", "macOS", "Android"]
 
 
 def _seed(source_type: str, query: str, time_window: str) -> int:
@@ -87,7 +96,7 @@ class MockDatadogClient(DatadogClient):
             ts = start + timedelta(seconds=rng.uniform(0, span))
             ts_iso = ts.isoformat()
             if source_type == "signals":
-                rows.append({
+                base = {
                     "timestamp": ts_iso,
                     "title": rng.choice(_RULES),
                     "severity": rng.choice(_SEVERITIES),
@@ -99,9 +108,24 @@ class MockDatadogClient(DatadogClient):
                     "user": rng.choice(_USERS),
                     "technique": rng.choice(_TECHNIQUES),
                     "tactic": rng.choice(_TACTICS),
-                })
+                }
+                # Estructura anidada extra: descubrible como attributes.*, custom.*, tags.
+                extra = {
+                    "attributes": {
+                        "workflow": {"triage_state": rng.choice(_TRIAGE)},
+                        "detection_method": rng.choice(_DETECTION),
+                    },
+                    "custom": {
+                        "mitre": {"tactic": base["tactic"], "technique": base["technique"]},
+                        "network": {
+                            "client": {"geoip": {"country": {"name": rng.choice(_COUNTRIES)}}}
+                        },
+                    },
+                    "tags": [f"env:{rng.choice(_ENVS)}", f"service:{base['service']}"],
+                }
+                rows.append({**base, **flatten_record(extra)})
             else:
-                rows.append({
+                base = {
                     "timestamp": ts_iso,
                     "host": rng.choice(_HOSTS),
                     "service": rng.choice(_SERVICES),
@@ -113,7 +137,21 @@ class MockDatadogClient(DatadogClient):
                     "http_method": rng.choice(_METHODS),
                     "http_status_code": rng.choice([200, 201, 301, 400, 401, 403, 404, 500]),
                     "url": rng.choice(["/login", "/api/v1/data", "/checkout", "/health"]),
-                })
+                }
+                extra = {
+                    "attributes": {
+                        "logger": {"name": rng.choice(_LOGGERS)},
+                        "http": {
+                            "url_details": {"path": base["url"]},
+                            "useragent_details": {"os": {"family": rng.choice(_OS)}},
+                        },
+                        "network": {
+                            "client": {"geoip": {"country": {"iso_code": rng.choice(_ISO)}}}
+                        },
+                    },
+                    "tags": [f"env:{rng.choice(_ENVS)}", f"service:{base['service']}"],
+                }
+                rows.append({**base, **flatten_record(extra)})
 
         rows.sort(key=lambda r: r["timestamp"], reverse=True)
         return QueryResult(fields=fields_for(source_type), rows=rows)

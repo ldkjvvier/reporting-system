@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends
 
 from app.auth.security import get_current_user
-from app.integrations.datadog.base import fields_for
+from app.integrations.datadog.base import discover_fields, fields_for
 from app.integrations.datadog.factory import get_datadog_client
 from app.models import User
 from app.schemas import PreviewRequest, PreviewResponse
@@ -27,4 +27,9 @@ def preview(payload: PreviewRequest, _: User = Depends(get_current_user)):
         limit=payload.limit,
     )
     rows = result.rows[: payload.limit]
-    return PreviewResponse(fields=result.fields, rows=rows, total=result.total)
+    return PreviewResponse(
+        fields=result.fields,
+        rows=rows,
+        total=result.total,
+        available_fields=discover_fields(rows, result.fields),
+    )

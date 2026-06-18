@@ -61,4 +61,5 @@ export interface PreviewResponse {
   fields: string[];
   rows: Record<string, unknown>[];
   total: number;
+  available_fields?: string[];
 }

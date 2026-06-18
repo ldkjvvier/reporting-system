@@ -168,9 +168,10 @@ class PreviewRequest(BaseModel):
 
 
 class PreviewResponse(BaseModel):
-    fields: List[str]
+    fields: List[str]            # campos curados (selección por defecto)
     rows: List[dict]
     total: int
+    available_fields: List[str] = []  # todos los campos hallados en la muestra (incluye anidados)
 
 
 # ---------- Helpers ----------

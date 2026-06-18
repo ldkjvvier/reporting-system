@@ -13,6 +13,19 @@ from app.integrations.datadog.base import (
     fields_for,
     window_to_range,
 )
+from app.integrations.datadog.flatten import flatten_record
+
+
+def _raw_attributes(attrs) -> dict:
+    """Aplana el objeto attributes completo a notación de punto (attributes.*),
+    para exponer también los campos anidados que no están en la lista curada."""
+    to_dict = getattr(attrs, "to_dict", None)
+    if not callable(to_dict):
+        return {}
+    try:
+        return flatten_record(to_dict(), "attributes")
+    except Exception:
+        return {}
 
 
 class RealDatadogClient(DatadogClient):
@@ -65,7 +78,7 @@ class RealDatadogClient(DatadogClient):
             for sig in resp.data or []:
                 attrs = sig.attributes
                 custom = getattr(attrs, "custom", {}) or {}
-                rows.append({
+                row = {
                     "timestamp": str(getattr(attrs, "timestamp", "")),
                     "title": getattr(attrs, "title", ""),
                     "severity": str(custom.get("severity", "")),
@@ -77,7 +90,10 @@ class RealDatadogClient(DatadogClient):
                     "user": str(custom.get("user", "")),
                     "technique": str(custom.get("technique", "")),
                     "tactic": str(custom.get("tactic", "")),
-                })
+                }
+                # Campos curados primero; el resto del árbol queda disponible como attributes.*
+                row.update(_raw_attributes(attrs))
+                rows.append(row)
         return rows
 
     def _search_metrics(self, query, start, end, limit) -> List[dict]:
@@ -134,7 +150,7 @@ class RealDatadogClient(DatadogClient):
             for log in resp.data or []:
                 attrs = log.attributes
                 a = getattr(attrs, "attributes", {}) or {}
-                rows.append({
+                row = {
                     "timestamp": str(getattr(attrs, "timestamp", "")),
                     "host": str(getattr(attrs, "host", "")),
                     "service": str(getattr(attrs, "service", "")),
@@ -146,5 +162,8 @@ class RealDatadogClient(DatadogClient):
                     "http_method": str(a.get("http", {}).get("method", "")),
                     "http_status_code": str(a.get("http", {}).get("status_code", "")),
                     "url": str(a.get("http", {}).get("url", "")),
-                })
+                }
+                # El objeto 'attributes.attributes' de Datadog trae todo el detalle anidado.
+                row.update(flatten_record(a, "attributes"))
+                rows.append(row)
         return rows

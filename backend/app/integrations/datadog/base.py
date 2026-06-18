@@ -50,6 +50,19 @@ def fields_for(source_type: str) -> List[str]:
     return LOG_FIELDS
 
 
+def discover_fields(rows: List[dict], curated: List[str]) -> List[str]:
+    """Combina los campos curados (primero, en su orden) con los descubiertos en la
+    muestra. Permite ofrecer al usuario también los campos anidados que realmente
+    trae el dato, más allá de la lista fija."""
+    seen = set(curated)
+    extra = set()
+    for row in rows:
+        for k in row.keys():
+            if k not in seen:
+                extra.add(k)
+    return list(curated) + sorted(extra)
+
+
 class DatadogClient(ABC):
     """Cliente abstracto. Implementaciones: Mock y Real."""
 
