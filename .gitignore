@@ -21,3 +21,7 @@ outbox/
 # Bases de datos locales (SQLite)
 *.db
 *.sqlite3
+
+# Claude Code (generados por skills/agentes)
+.agents/
+skills-lock.json
